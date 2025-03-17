@@ -1,17 +1,18 @@
-import { useState } from 'react';
-import {QrReader} from 'react-qr-reader';
-import CryptoJS from 'crypto-js';
+import { useState, useRef } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
+import CryptoJS from "crypto-js";
 
-export default function Conductor(){
-
-    const [scannedData, setScannedData] = useState(null);
+export default function Conductor() {
+  const [scannedData, setScannedData] = useState(null);
   const [decryptedData, setDecryptedData] = useState(null);
   const [verificationMessage, setVerificationMessage] = useState("");
-  const [isScanning, setIsScanning] = useState(true); // Controls scanning state
+  const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef(null);
+
+  const secretKey = "b7!A$df1@Gz9xLqP4mT8vW#Y2sR6NcKd";
 
   const decryptData = (encryptedText) => {
     try {
-        const secretKey = "b7!A$df1@Gz9xLqP4mT8vW#Y2sR6NcKd";
       const bytes = CryptoJS.AES.decrypt(encryptedText, secretKey);
       const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
       return decryptedText ? JSON.parse(decryptedText) : null;
@@ -37,31 +38,56 @@ export default function Conductor(){
     }
   };
 
+  const startScanner = () => {
+    if (isScanning || scannerRef.current) return;
+
+    setIsScanning(true);
+
+    const scanner = new Html5QrcodeScanner("qr-reader", {
+      fps: 10,
+      qrbox: 250,
+      disableFlip: false,
+      rememberLastUsedCamera: true,
+    });
+
+    scanner.render(
+      (decodedText) => {
+        setScannedData(decodedText);
+        stopScanner();
+      },
+      (error) => {
+        console.warn("QR Scan Error:", error);
+      }
+    );
+
+    scannerRef.current = scanner;
+  };
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current
+        .clear()
+        .then(() => {
+          setIsScanning(false);
+          scannerRef.current = null;
+        })
+        .catch((err) => console.warn("Error stopping scanner:", err));
+    }
+  };
+
   return (
     <div style={{ textAlign: "center", padding: "20px" }}>
       <h2>Scan Bus Pass</h2>
 
-      {/* Live Camera Preview */}
-      {isScanning && (
-        <div style={{ width: "100%", maxWidth: "400px", margin: "auto" }}>
-          <QrReader
-            constraints={{ facingMode: "environment" }} // Uses front camera
-            scanDelay={500} // Reduces excessive scans
-            onResult={(result, error) => {
-              if (result?.text) {
-                setScannedData(result.text);
-                setIsScanning(false); // Stops scanning once QR is detected
-                setVerificationMessage(""); // Reset messages
-              }
-              if (error) console.log("QR Scan Error:", error);
-            }}
-            videoStyle={{ width: "100%", borderRadius: "10px" }} // Styling for better view
-          />
-        </div>
+      {/* Scanner Start/Stop */}
+      {isScanning ? (
+        <button onClick={stopScanner}>⛔ Stop Scanner</button>
+      ) : (
+        <button onClick={startScanner}>📷 Start Scanning</button>
       )}
 
-      {/* Rescan Button */}
-      {!isScanning && <button onClick={() => setIsScanning(true)}>🔄 Rescan QR</button>}
+      {/* Live Camera Preview */}
+      <div id="qr-reader" style={{ width: "100%", maxWidth: "400px", margin: "auto" }}></div>
 
       {/* Scanned Data */}
       {scannedData && (
@@ -84,5 +110,4 @@ export default function Conductor(){
       )}
     </div>
   );
-
 }

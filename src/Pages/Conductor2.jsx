@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
-import { Html5QrcodeScanner } from "html5-qrcode";
-import CryptoJS from "crypto-js";
+import { useState } from 'react';
+import {QrReader} from 'react-qr-reader';
+import CryptoJS from 'crypto-js';
 
-export default function Conductor1() {
-  const [scannedData, setScannedData] = useState(null);
+export default function Conductor2(){
+
+    const [scannedData, setScannedData] = useState(null);
   const [decryptedData, setDecryptedData] = useState(null);
   const [verificationMessage, setVerificationMessage] = useState("");
-  const [isScanning, setIsScanning] = useState(true);
-
-  const secretKey = "b7!A$df1@Gz9xLqP4mT8vW#Y2sR6NcKd";
+  const [isScanning, setIsScanning] = useState(true); // Controls scanning state
 
   const decryptData = (encryptedText) => {
     try {
+        const secretKey = "b7!A$df1@Gz9xLqP4mT8vW#Y2sR6NcKd";
       const bytes = CryptoJS.AES.decrypt(encryptedText, secretKey);
       const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
       return decryptedText ? JSON.parse(decryptedText) : null;
@@ -37,37 +37,27 @@ export default function Conductor1() {
     }
   };
 
-  useEffect(() => {
-    if (!isScanning) return;
-
-    const scanner = new Html5QrcodeScanner("qr-reader", {
-      fps: 10,
-      qrbox: 250,
-      disableFlip: false, // Keep it false to allow mirroring
-      rememberLastUsedCamera: true,
-    });
-
-    scanner.render(
-      (decodedText) => {
-        setScannedData(decodedText);
-        setIsScanning(false);
-        scanner.clear();
-      },
-      (error) => {
-        console.warn("QR Scan Error:", error);
-      }
-    );
-
-    return () => scanner.clear();
-  }, [isScanning]);
-
   return (
     <div style={{ textAlign: "center", padding: "20px" }}>
       <h2>Scan Bus Pass</h2>
 
       {/* Live Camera Preview */}
       {isScanning && (
-        <div id="qr-reader" style={{ width: "100%", maxWidth: "400px", margin: "auto" }}></div>
+        <div style={{ width: "100%", maxWidth: "400px", margin: "auto" }}>
+          <QrReader
+            constraints={{ facingMode: "user" }} // Uses front camera
+            scanDelay={500} // Reduces excessive scans
+            onResult={(result, error) => {
+              if (result?.text) {
+                setScannedData(result.text);
+                setIsScanning(false); // Stops scanning once QR is detected
+                setVerificationMessage(""); // Reset messages
+              }
+              if (error) console.log("QR Scan Error:", error);
+            }}
+            videoStyle={{ width: "100%", borderRadius: "10px" }} // Styling for better view
+          />
+        </div>
       )}
 
       {/* Rescan Button */}
@@ -94,4 +84,5 @@ export default function Conductor1() {
       )}
     </div>
   );
+
 }
